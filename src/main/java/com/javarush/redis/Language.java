@@ -1,6 +1,5 @@
 package com.javarush.redis;
 
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 

@@ -1,7 +1,6 @@
 package com.javarush.redis;
 
 import com.javarush.domain.Continent;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 

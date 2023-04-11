@@ -1,10 +1,8 @@
 package com.javarush.domain;
 
 import jakarta.persistence.*;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.glassfish.jaxb.core.v2.model.core.ID;
 
 @Entity
 @Table(schema = "world", name = "city")
