@@ -1,14 +1,16 @@
 package com.javarush.redis;
 
 import com.javarush.domain.Continent;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.Set;
 
 @Getter
 @Setter
+@Builder
+@RequiredArgsConstructor
+@AllArgsConstructor
 public class CityCountry {
     private Integer id;
 

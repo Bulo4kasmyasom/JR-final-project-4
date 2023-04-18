@@ -1,12 +1,14 @@
 package com.javarush.redis;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 
 @Getter
 @Setter
+@Builder
+@RequiredArgsConstructor
+@AllArgsConstructor
 public class Language {
     private String language;
     private Boolean isOfficial;

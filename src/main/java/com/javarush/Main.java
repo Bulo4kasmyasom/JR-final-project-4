@@ -16,23 +16,18 @@ import io.lettuce.core.api.sync.RedisStringCommands;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
-import org.hibernate.cfg.Environment;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
 
 public class Main {
-
     private final SessionFactory sessionFactory;
     private final RedisClient redisClient;
-
     private final ObjectMapper mapper;
-
     private final CityDAO cityDAO;
     private final CountryDAO countryDAO;
 
@@ -50,12 +45,8 @@ public class Main {
         List<City> allCities = main.fetchData(main);
         List<CityCountry> preparedData = main.transformData(allCities);
         main.pushToRedis(preparedData);
-
-        //закроем текущую сессию, чтоб точно делать запрос к БД, а не вытянуть данные из кэша
         main.sessionFactory.getCurrentSession().close();
 
-        //выбираем случайных 10 id городов
-        //так как мы не делали обработку невалидных ситуаций, используй существующие в БД id
         List<Integer> ids = List.of(3, 2545, 123, 4, 189, 89, 3458, 1189, 10, 102);
 
         long startRedis = System.currentTimeMillis();
@@ -113,38 +104,35 @@ public class Main {
 
     private List<CityCountry> transformData(List<City> cities) {
         return cities.stream().map(city -> {
-            CityCountry res = new CityCountry();
-            res.setId(city.getId());
-            res.setName(city.getName());
-            res.setPopulation(city.getPopulation());
-            res.setDistrict(city.getDistrict());
-
             Country country = city.getCountry();
-            res.setAlternativeCountryCode(country.getAlternativeCode());
-            res.setContinent(country.getContinent());
-            res.setCountryCode(country.getCode());
-            res.setCountryName(country.getName());
-            res.setCountryPopulation(country.getPopulation());
-            res.setCountryRegion(country.getRegion());
-            res.setCountrySurfaceArea(country.getSurfaceArea());
-            Set<CountryLanguage> countryLanguages = country.getLanguages();
-            Set<Language> languages = countryLanguages.stream().map(cl -> {
-                Language language = new Language();
-                language.setLanguage(cl.getLanguage());
-                language.setIsOfficial(cl.getIsOfficial());
-                language.setPercentage(cl.getPercentage());
-                return language;
-            }).collect(Collectors.toSet());
-            res.setLanguages(languages);
 
-            return res;
+            Set<CountryLanguage> countryLanguages = country.getLanguages();
+            Set<Language> languages = countryLanguages.stream().map(cl -> Language.builder()
+                    .language(cl.getLanguage())
+                    .isOfficial(cl.getIsOfficial())
+                    .percentage(cl.getPercentage()).build()).collect(Collectors.toSet());
+
+            return CityCountry.builder()
+                    .id(city.getId())
+                    .name(city.getName())
+                    .population(city.getPopulation())
+                    .district(city.getDistrict())
+                    .alternativeCountryCode(country.getAlternativeCode())
+                    .continent(country.getContinent())
+                    .countryCode(country.getCode())
+                    .countryName(country.getName())
+                    .countryPopulation(country.getPopulation())
+                    .countryRegion(country.getRegion())
+                    .countrySurfaceArea(country.getSurfaceArea())
+                    .languages(languages)
+                    .build();
         }).collect(Collectors.toList());
     }
 
     private RedisClient prepareRedisClient() {
         RedisClient redisClient = RedisClient.create(RedisURI.create("localhost", 6379));
         try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
-            System.out.println("\nConnected to Redis\n");
+            System.out.println("\nConnected to Redis " + connection.isOpen() + " \n");
         }
         return redisClient;
     }
@@ -153,7 +141,7 @@ public class Main {
         try (Session session = main.sessionFactory.getCurrentSession()) {
             List<City> allCities = new ArrayList<>();
             session.beginTransaction();
-            List<Country> countries = main.countryDAO.getAll();
+            main.countryDAO.getAll();
 
             int totalCount = main.cityDAO.getTotalCount();
             int step = 500;
@@ -175,24 +163,12 @@ public class Main {
     }
 
     private SessionFactory prepareRelationalDb() {
-        final SessionFactory sessionFactory;
-        Properties properties = new Properties();
-        properties.put(Environment.DIALECT, "org.hibernate.dialect.MySQL8Dialect");
-        properties.put(Environment.DRIVER, "com.p6spy.engine.spy.P6SpyDriver");
-        properties.put(Environment.URL, "jdbc:p6spy:mysql://localhost:3306/world");
-        properties.put(Environment.USER, "root");
-        properties.put(Environment.PASS, "root");
-        properties.put(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");
-        properties.put(Environment.HBM2DDL_AUTO, "validate");
-        properties.put(Environment.STATEMENT_BATCH_SIZE, "100");
-
-        sessionFactory = new Configuration()
+        return new Configuration()
+                .configure()
                 .addAnnotatedClass(City.class)
                 .addAnnotatedClass(Country.class)
                 .addAnnotatedClass(CountryLanguage.class)
-                .addProperties(properties)
                 .buildSessionFactory();
-        return sessionFactory;
     }
 }
 
